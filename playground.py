@@ -1,3 +1,2 @@
-a = (1,)
-
-print("done")
+str = ""
+str.replace("\r\n", " ")

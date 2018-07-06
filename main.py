@@ -1,46 +1,58 @@
-from layers.Conv121 import Conv121
+import keras
+from experiment_utils.gait_io import load_90_degree_gei_for_experiment1
 from keras.models import Sequential
-from keras.layers import Activation, Conv2D
-import random
-import numpy as np
-import tensorflow as tf
+from keras.layers import Conv2D, Activation, MaxPooling2D, Dense, Flatten, Dropout
+from layers.Conv2D121 import Conv2D121
+import os
 
-random.seed(0)
+batch_size = 4
+num_classes = 124
+epochs = 10000
+save_dir = os.path.join(os.getcwd(), 'savedd_models')
+model_name = 'keras_gait_cnn.h5'
 
 model = Sequential()
-conv1 = Conv121(3, (2, 2), padding='same',
-                  input_shape=(4, 4, 3), use_bias=True)
-model.add(conv1)
-#model.add(Conv2D(32, (3, 3), padding='same',
-#                 input_shape=(9, 9, 1)))
-model.add(Activation('relu'))
+model.add(Conv2D(8, (5, 5), padding='valid',
+                 input_shape=(140, 140, 1)))
+model.add(Activation('tanh'))
+model.add(MaxPooling2D(pool_size=(2,2), strides=2, padding='valid'))
+model.add(Conv2D121(8, (5, 5), padding='valid'))
+model.add(Activation('tanh'))
+model.add(MaxPooling2D(pool_size=(2,2), strides=2, padding='valid'))
+model.add(Conv2D121(8, (5, 5), padding='valid'))
+model.add(Activation('tanh'))
+model.add(MaxPooling2D(pool_size=(2,2), strides=2, padding='valid'))
+model.add(Conv2D121(8, (5, 5), padding='valid'))
+model.add(Activation('tanh'))
+model.add(MaxPooling2D(pool_size=(2,2), strides=2, padding='valid'))
+model.add(Flatten())
+model.add(Dense(num_classes, input_shape=(200,)))
+model.add(Activation('softmax'))
 
-weights = conv1.get_weights()
+opt = keras.optimizers.rmsprop(lr=0.001)
 
-input_list = [
-    [[[1,2,3], [4,5,6], [7,8,9], [10,11,12]],
-    [[13,14,15], [16,17,18], [19,20,21], [22,23,24]],
-    [[25,26,27], [28,29,30], [31,32,33], [34,35,36]],
-    [[37,38,39], [40,41,42], [43,44,45], [46,47,48]]]
-]
-input_value = np.array(input_list)
+model.compile(loss='categorical_crossentropy',
+              optimizer=opt,
+              metrics=['accuracy'])
 
-init = tf.global_variables_initializer()
-input_x = tf.placeholder(tf.float32, [None, 4, 4, 3], name='input_x')
-output_tensor = conv1(input_x)
+x_train, y_train, x_test, y_test = load_90_degree_gei_for_experiment1('Z:/DatasetB/GEI_CASIA_B/GEI_CASIA_B/gei90/', 'cl2')
 
-sess = tf.Session()
+x_train = x_train.astype('float32')
+x_test = x_test.astype('float32')
+x_train /= 255
+x_test /= 255
 
-sess.run(init)
-print("input:")
-print(input_value)
-print("")
-print("weight:")
-print(weights)
-print("")
-print("output:")
-print(sess.run(output_tensor, feed_dict={
-    input_x: input_value
-}))
+model.fit(x_train, y_train,
+          batch_size=batch_size,
+          epochs=epochs,
+          validation_data=(x_test, y_test),
+          shuffle=True)
 
-print("done")
+if not os.path.isdir(save_dir):
+    os.makedirs(save_dir)
+model_path = os.path.join(save_dir, model_name)
+model.save(model_path)
+print('Saved trained model at %s ' % model_path)
+scores = model.evaluate(x_test, y_test, verbose=1)
+print('Test loss:', scores[0])
+print('Test accuracy:', scores[1])

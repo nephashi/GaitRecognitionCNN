@@ -12,7 +12,7 @@ from keras.engine.base_layer import InputSpec
 from keras.utils import conv_utils
 
 # 121 means one-to-one connection :)
-class Conv121(Layer):
+class Conv2D121(Layer):
 
     def __init__(self, filters,
                  kernel_size,
@@ -21,7 +21,7 @@ class Conv121(Layer):
                  padding='valid',
                  data_format=None,
                  use_bias=True,
-                 kernel_initializer='random_uniform',
+                 kernel_initializer='glorot_uniform',
                  bias_initializer='zeros',
                  kernel_regularizer=None,
                  bias_regularizer=None,
@@ -29,7 +29,7 @@ class Conv121(Layer):
                  bias_constraint=None,
                  **kwargs
                  ):
-        super(Conv121, self).__init__(**kwargs)
+        super(Conv2D121, self).__init__(**kwargs)
         self.rank = rank
         self.filters = filters
         self.kernel_size = conv_utils.normalize_tuple(kernel_size, rank, 'kernel_size')
@@ -123,3 +123,26 @@ class Conv121(Layer):
 
         return output
 
+    def compute_output_shape(self, input_shape):
+        if self.data_format == 'channels_last':
+            space = input_shape[1:-1]
+            new_space = []
+            for i in range(len(space)):
+                new_dim = conv_utils.conv_output_length(
+                    space[i],
+                    self.kernel_size[i],
+                    padding=self.padding,
+                    stride=self.strides[i])
+                new_space.append(new_dim)
+            return (input_shape[0],) + tuple(new_space) + (self.filters,)
+        if self.data_format == 'channels_first':
+            space = input_shape[2:]
+            new_space = []
+            for i in range(len(space)):
+                new_dim = conv_utils.conv_output_length(
+                    space[i],
+                    self.kernel_size[i],
+                    padding=self.padding,
+                    stride=self.strides[i])
+                new_space.append(new_dim)
+            return (input_shape[0], self.filters) + tuple(new_space)
